@@ -351,6 +351,9 @@
 </div>
 
 <script>
+  const SUPABASE_URL = 'https://sfwnutztbzfaztammbie.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_mK8kJodNkPDX4uJduqXoZw_zOXCG0vV';
+
   let currentRole = 'Visitor';
   document.querySelectorAll('.visitor-only').forEach(f => f.style.display = 'block');
   let photoData = null;
@@ -396,7 +399,6 @@
     const name = document.getElementById('full-name').value.trim();
     const errEl = document.getElementById('err-msg');
     errEl.style.display = 'none';
-
     if (!name) { errEl.style.display = 'block'; errEl.textContent = 'Please enter your name.'; return; }
 
     let visiting = '', company = '';
@@ -422,7 +424,6 @@
     });
 
     const record = {
-      id: Date.now(),
       name,
       role: currentRole,
       visiting: visiting || '—',
@@ -431,13 +432,36 @@
       photo: photoData || null
     };
 
-    // Save to localStorage for the admin portal
-    const logs = JSON.parse(localStorage.getItem('checkin_logs') || '[]');
-    logs.unshift(record);
-    localStorage.setItem('checkin_logs', JSON.stringify(logs));
+    // Disable button while saving
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
 
-    // Show success
-    showSuccess(record);
+    fetch(`${SUPABASE_URL}/rest/v1/checkins`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify(record)
+    })
+    .then(res => {
+      if (!res.ok) throw new Error('Save failed');
+      return res.json();
+    })
+    .then(data => {
+      btn.disabled = false;
+      btn.textContent = 'Check In ✓';
+      showSuccess(record);
+    })
+    .catch(err => {
+      btn.disabled = false;
+      btn.textContent = 'Check In ✓';
+      errEl.style.display = 'block';
+      errEl.textContent = 'Connection error. Please try again.';
+    });
   }
 
   function showSuccess(record) {
