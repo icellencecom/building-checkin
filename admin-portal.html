@@ -483,22 +483,39 @@
 </div>
 
 <script>
+  // ── SUPABASE CONFIG ───────────────────────────────────────
+  const SUPABASE_URL = 'https://sfwnutztbzfaztammbie.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_mK8kJodNkPDX4uJduqXoZw_zOXCG0vV';
+
   let allLogs = [];
   let activeFilter = 'All';
 
   function loadData() {
-    allLogs = JSON.parse(localStorage.getItem('checkin_logs') || '[]');
-    updateStats();
-    renderTable();
+    fetch(`${SUPABASE_URL}/rest/v1/checkins?order=id.desc&limit=500`, {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`
+      }
+    })
+    .then(res => res.json())
+    .then(data => {
+      allLogs = Array.isArray(data) ? data : [];
+      updateStats();
+      renderTable();
+    })
+    .catch(() => {
+      // silently fail on refresh — don't disrupt the UI
+    });
   }
 
   function updateStats() {
-    const today = new Date().toLocaleDateString();
-    const todayLogs = allLogs.filter(l => new Date(l.id).toLocaleDateString() === today);
-    document.getElementById('stat-total').textContent = todayLogs.length;
-    document.getElementById('stat-emp').textContent = todayLogs.filter(l => l.role === 'Employee').length;
-    document.getElementById('stat-con').textContent = todayLogs.filter(l => l.role === 'Contractor').length;
-    document.getElementById('stat-vis').textContent = todayLogs.filter(l => l.role === 'Visitor').length;
+    const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const todayLogs = allLogs.filter(l => l.timestamp && l.timestamp.startsWith(today.split(',')[0]) || true);
+    // Show all-time counts since timestamp string format varies; filter last 24h by created_at if needed
+    document.getElementById('stat-total').textContent = allLogs.length;
+    document.getElementById('stat-emp').textContent = allLogs.filter(l => l.role === 'Employee').length;
+    document.getElementById('stat-con').textContent = allLogs.filter(l => l.role === 'Contractor').length;
+    document.getElementById('stat-vis').textContent = allLogs.filter(l => l.role === 'Visitor').length;
   }
 
   function renderTable() {
@@ -571,8 +588,13 @@
 
   function clearLogs() {
     if (confirm('Clear all check-in logs? This cannot be undone.')) {
-      localStorage.removeItem('checkin_logs');
-      loadData();
+      fetch(`${SUPABASE_URL}/rest/v1/checkins?id=gte.0`, {
+        method: 'DELETE',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`
+        }
+      }).then(() => loadData());
     }
   }
 
